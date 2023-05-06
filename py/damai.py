@@ -38,6 +38,7 @@ class Concert:
         option.add_experimental_option('useAutomationExtension', False)  # 去掉开发者警告
         option.add_experimental_option('excludeSwitches', ['enable-automation'])
         option.add_argument('--disable-blink-features=AutomationControlled')
+        option.add_argument('--ignore-certificate-errors')
         
         self.driver = webdriver.Chrome(executable_path=chrome_driver, options=option)  # 当前浏览器驱动对象
         
@@ -104,27 +105,38 @@ class Concert:
             print('=' * 30)
             print('###开始城市，场次，票档，数量的选择###')
 
+            # 判断当前是否有预售通知，如果有的话，会新插入一个div，将其他的div往下移动
+            
+
             # 这里先找城市
-            cityXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[3]/div[1]/div[%d]" % (city)
+            #cityXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[3]/div[1]/div[%d]" % (city)
+            cityXpath = '//*[@class="citys"]/div/div[%d]' % (city)
             self.driver.find_element(By.XPATH, cityXpath).click()
+            print('城市选择完毕')
             time.sleep(1)
 
             # 再找场次
-            sessXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[4]/div[3]/div[2]/div/div[%d]" % (sessions)
+            #sessXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[4]/div[3]/div[2]/div/div[%d]" % (sessions)
+            sessXpath = '//*[@class="perform__order__select perform__order__select__performs"]/div[2]/div/div[%d]' % (sessions)
             self.driver.find_element(By.XPATH, sessXpath).click()
+            print('场次选择完毕')
             time.sleep(1)
 
             # 再找票档
-            ticketStallsXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[4]/div[5]/div[2]/div/div[%d]" % (ticket_stalls)
+            #ticketStallsXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[4]/div[5]/div[2]/div/div[%d]" % (ticket_stalls)
+            ticketStallsXpath =  '//*[@class="perform__order__select perform__order__select__performs"]/following-sibling::div[2]/div[2]/div/div[%d]' % (ticket_stalls)
             self.driver.find_element(By.XPATH, ticketStallsXpath).click()
+            print('票档选择完毕')
             time.sleep(1)
 
             # 再找数量
             if ticket_num > 1:
-                ticketNumXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[4]/div[6]/div[2]/div/div/a[2]"
+                #ticketNumXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[4]/div[6]/div[2]/div/div/a[2]"
+                ticketNumXpath = '//*[@class="perform__order__price"]/div[2]/div/div/a[2]'
                 ticketNum = self.driver.find_element(By.XPATH, ticketNumXpath)
                 for x in range (1, ticket_num):
                     ticketNum.click()
+            print('数量选择完毕')
             time.sleep(1)        
 
             while self.driver.title.find("确认订单") == -1:
@@ -241,11 +253,15 @@ if __name__ == '__main__':
         print('初始化详情、城市、场次、票档、数量：', target_url, city, sessions, ticket_stalls, ticket_num)
         con.enter_concert()  # 打开浏览器
         # 下单选票，如果失败则等1s后刷新页面重新选
-        if con.choose_ticket() == False:
+
+        ticketRes = con.choose_ticket()
+        while ticketRes == False:
+            print('购买失败，刷新页面重新购买')
             time.sleep(1)
             con.driver.refresh()
-            con.choose_ticket()
-        con.finish()    
+            ticketRes = con.choose_ticket()
+        con.finish() 
+    
     except Exception as e:
         print(e)
         con.finish()
