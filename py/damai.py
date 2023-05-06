@@ -230,12 +230,14 @@ if __name__ == '__main__':
         parser.add_argument("-c", "--inputC", help="请输入你需要抢票的场次", dest="argC", type=int, default="1")
         parser.add_argument("-d", "--inputD", help="请输入你需要抢票的票档", dest="argD", type=int, default="1")
         parser.add_argument("-e", "--inputE", help="请输入你需要抢票的数量", dest="argE", type=int, default="1")
+        parser.add_argument("-f", "--inputF", help="请输入对应浏览器的驱动路径", dest="argF", type=str, default="xxx")
         args = parser.parse_args()
         target_url = args.argA
         city = args.argB
         sessions = args.argC
         ticket_stalls = args.argD
         ticket_num = args.argE
+        chrome_driver = args.argF
         print('初始化详情、城市、场次、票档、数量：', target_url, city, sessions, ticket_stalls, ticket_num)
         con.enter_concert()  # 打开浏览器
         # 下单选票，如果失败则等1s后刷新页面重新选
