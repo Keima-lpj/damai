@@ -1,23 +1,4 @@
-"""
-课题：Python之大麦网自动抢票(一) 实现自动登陆
-
-授课老师: 新课教育-James
-
-知识点：
-    面向对象编程
-    selenium 操作浏览器
-    pickle 保存和读取Cookie实现免登陆
-    time 做延时操作
-    os 创建文件，判断文件是否存在
-
-第三方库：
-    selenium >>> pip install selenium
-
-开发环境：
-    版 本：anaconda（python3.8.8）
-    编辑器：pycharm
-
-"""
+# -*- coding: utf-8 -*-
 
 import os  # 创建文件夹, 文件是否存在
 import time  # time 计时
@@ -25,17 +6,25 @@ import pickle  # 保存和读取cookie实现免登陆的一个工具
 from time import sleep
 from selenium import webdriver  # 操作浏览器的工具
 from selenium.webdriver.common.by import By
+import argparse
 
-"""
-一. 实现免登陆
-二. 抢票并且下单
-"""
+
 # 大麦网主页
 damai_url = 'https://www.damai.cn/'
 # 登录
 login_url = 'https://passport.damai.cn/login?ru=https%3A%2F%2Fwww.damai.cn%2F'
 # 抢票目标页
 target_url = 'https://detail.damai.cn/item.htm?spm=a2oeg.search_category.0.0.79664d15u8c2PP&id=711368998162&clicktitle=2023%E5%BC%A0%E4%BF%A1%E5%93%B2%E3%80%8C%E6%9C%AA%E6%9D%A5%E5%BC%8F2.0%E3%80%8D%E4%B8%96%E7%95%8C%E5%B7%A1%E5%9B%9E%E6%BC%94%E5%94%B1%E4%BC%9A-%E6%AD%A6%E6%B1%89%E7%AB%99'
+# 选择城市
+city = 1
+# 选择场次   默认第一个场次
+sessions = 1
+# 选择票档  默认第一个票档，顺序从左往右从上往下
+ticket_stalls = 1
+# 选择数量
+ticket_num = 1
+# 驱动
+chrome_driver = '/home/keima/Desktop/chromedriver/chromedriver'
 
 # class Concert:
 class Concert:
@@ -50,7 +39,7 @@ class Concert:
         option.add_experimental_option('excludeSwitches', ['enable-automation'])
         option.add_argument('--disable-blink-features=AutomationControlled')
         
-        self.driver = webdriver.Chrome(executable_path='/home/keima/Desktop/chromedriver/chromedriver', options=option)  # 当前浏览器驱动对象
+        self.driver = webdriver.Chrome(executable_path=chrome_driver, options=option)  # 当前浏览器驱动对象
         
     # cookies: 登录网站时出现的 记录用户信息用的
     def set_cookies(self):
@@ -113,7 +102,31 @@ class Concert:
         """选票操作"""
         if self.status == 2:
             print('=' * 30)
-            print('###开始进行日期及票价选择###')
+            print('###开始城市，场次，票档，数量的选择###')
+
+            # 这里先找城市
+            cityXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[3]/div[1]/div[%d]" % (city)
+            self.driver.find_element(By.XPATH, cityXpath).click()
+            time.sleep(1)
+
+            # 再找场次
+            sessXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[4]/div[3]/div[2]/div/div[%d]" % (sessions)
+            self.driver.find_element(By.XPATH, sessXpath).click()
+            time.sleep(1)
+
+            # 再找票档
+            ticketStallsXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[4]/div[5]/div[2]/div/div[%d]" % (ticket_stalls)
+            self.driver.find_element(By.XPATH, ticketStallsXpath).click()
+            time.sleep(1)
+
+            # 再找数量
+            if ticket_num > 1:
+                ticketNumXpath = "/html/body/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[4]/div[6]/div[2]/div/div/a[2]"
+                ticketNum = self.driver.find_element(By.XPATH, ticketNumXpath)
+                for x in range (1, ticket_num):
+                    ticketNum.click()
+            time.sleep(1)        
+
             while self.driver.title.find("确认订单") == -1:
                 try:
                     buybutton = self.driver.find_element(By.CLASS_NAME, 'buy-link').text
@@ -130,11 +143,15 @@ class Concert:
                     elif buybutton == '选座购买':
                         self.driver.find_element(By.CLASS_NAME, 'buybtn').click()
                         self.status = 5
+                    elif buybutton == "不，立即购买":
+                        self.driver.find_element(By.CLASS_NAME, 'buy-link').click()
+                        self.status = 5
                     elif buybutton == "不，立即预订":
                         self.driver.find_element(By.CLASS_NAME, 'buy-link').click()
                         self.status = 5
                 except:
                     print('###没有跳转到订单结算界面###')
+                    return False
                 title = self.driver.title
                 if title == '选座购买':
                     # 选座购买的逻辑
@@ -147,7 +164,11 @@ class Concert:
                         print('正在加载.......')
 
                         # 找到第一位观演人，点击按钮选中
-                        self.driver.find_element(By.XPATH, '//*[@id="dmViewerBlock_DmViewerBlock"]/div[2]/div[1]/div[1]').click()
+                        # 根据前面选择的数量，循环勾选对应的观演人。 注意这里只能从第一个人开始选
+                        for x in range (1, ticket_num+1):
+                            print('开始买第%d张票' % x)
+                            ticketNumXpath = '//*[@id="dmViewerBlock_DmViewerBlock"]/div[2]/div[1]/div[%d]' % (x)
+                            self.driver.find_element(By.XPATH, ticketNumXpath).click()
                         time.sleep(0.5)
                         # 下单
                         print('正在下单.......')
@@ -157,7 +178,7 @@ class Concert:
                             # 下单操作
                         # self.check_order()
                         time.sleep(20)
-                        break
+                        return True
 
     def choice_seats(self):
         """选择座位"""
@@ -202,8 +223,27 @@ class Concert:
 if __name__ == '__main__':
     con = Concert()
     try:
+        # 从命令行中获取对应的抢票详情页面
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-a", "--inputA", help="请输入你需要抢票的详情页面地址：", dest="argA", type=str, default="xxx")
+        parser.add_argument("-b", "--inputB", help="请输入你需要抢票的城市", dest="argB", type=int, default="1")
+        parser.add_argument("-c", "--inputC", help="请输入你需要抢票的场次", dest="argC", type=int, default="1")
+        parser.add_argument("-d", "--inputD", help="请输入你需要抢票的票档", dest="argD", type=int, default="1")
+        parser.add_argument("-e", "--inputE", help="请输入你需要抢票的数量", dest="argE", type=int, default="1")
+        args = parser.parse_args()
+        target_url = args.argA
+        city = args.argB
+        sessions = args.argC
+        ticket_stalls = args.argD
+        ticket_num = args.argE
+        print('初始化详情、城市、场次、票档、数量：', target_url, city, sessions, ticket_stalls, ticket_num)
         con.enter_concert()  # 打开浏览器
-        con.choose_ticket()  # 选择座位
+        # 下单选票，如果失败则等1s后刷新页面重新选
+        if con.choose_ticket() == False:
+            time.sleep(1)
+            con.driver.refresh()
+            con.choose_ticket()
+        con.finish()    
     except Exception as e:
         print(e)
         con.finish()
